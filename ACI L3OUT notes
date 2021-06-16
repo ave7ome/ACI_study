@@ -1,0 +1,62 @@
+L3OUT - set of configurations that define connectivity to outside of ACI via routing
+
+EGP has pcTag
+
+What L3OUT do:
+	1. Learn ext routes via routing protocols (or statics)
+	2. Distribute learned ext routes (or statics) to other leaves
+	3. Advertise ACI int routes (BD subnets) to outside ACI
+	4. Advertise learned ext routes to other L3OUTs (Transit Routing)
+	5. Allow traffic to arrive from or be sent to ext networks via L3OUT by using a contract
+
+Why L3OUT is needed:
+IN ACI BD/EPG, every IP address is learned as an endpoint with /32 (or /128).
+Hence connecting a network device(router) that contains multiple subnets behind it to ACI via a BD/EPG
+will end up with an EP that has a huge number of /32 IPs - not efficient.
+
+L3OUT deployment summary:
+	1. Root of L3OUT
+		1.1. Select a routing protocol to deployment
+		1.2. Select a VRF to deploy the routing protocol
+		1.3. Select a L3OUT domain to define which range of VLANs and intefaces the L3OUT configurations are allowed to use
+	2. Node profile
+		2.1. Select leaves on which the routing protocol is deployed (border leaf switches)
+		2.2. Configure the Router-ID for the routing protocol on leaves (ACI doesn't automatically assign it based on IP of switch)
+	3. Interface profile 
+		3.1. Configure leaf interfaces on which the routing protocol runs (interface type (SVI,routed-port,subif), interface ID, IP)
+		3.2. Select a policy for the interface-level routing protocol parameters (hello interval for example)
+	4. External EPG (L3OUT EPG)
+		4.1. An empty external EPG is enough just to deploy a routing protocol and interface parameters
+			 such as IP of SVI itself, and to establish routing protocol peering with neighbor router.
+			 
+Root components of L3OUT:
+				VRF
+				External routed domain
+				Routing protocol
+
+Export route control subnet - when its checkbox is selected (for certain network, added to L3OUT EPG subnets)
+                              a route-map rule is created on the border leaf switches to redistribute the configured subnet
+							  from other L3OUTs into the routing protocol for this L3OUT. Redistribution happens from MP-BGP
+							  when the two L3OUTs are on different border leaf switches
+							  mainly used for transit routing (adds external networks from other l3outs to routing protocol)
+							  export subnet from ACI to the outside via L3OUT
+				
+SVI Encap scope ("Local" or "VRF") - feature that lets 2 L3OUTs on the same leaf to share same access encap VLAN
+lets 2 routing protocols to run      by default or with SVI encap scope "local" each L3OUT allocates an 
+on L3OUT							 L3OUT BD/SVI per access-encap VLAN. Hence, two L3OUTs with the same acc-enc VLAN cant coexist on the same border leaf
+
+SVI auto-state - allows border leaf to bring an L3OUT SVI down when all its VLAN member ports are down									 
+
+BGP route dampening - whenever route flaps, it receives a penalty of 1000, if certain number is summed like this
+					  route is being marked as dampened it stops from being advertised, penalty number is reduced by half every half timer
+					  
+BD subnet advertisement methods:
+		1. VIA L3OUT association to a BD (+ all control under each BD;- no info on which subnet is advertised in L3OUT itself)
+		2. VIA an "export Route contorl subnet" scope under L3OUT EPG (+ L3OUT can decide which subnet to advertise;- hard to differentiate BD subnet and transit route subnet)
+		3. VIA Route map/profile in export direction with an explicit prefix-list (+ L3OUT can decide which subnet to advertise;- complicated but flexible)
+
+Interleak - leaking of external routes learned via L3OUT to MP-BGP (used for example to set metrics to certain border leaf L3OUTs)
+
+VRF route leak - leaking of external routes learned via L3OUT to another VRF					  
+					  
+					  
