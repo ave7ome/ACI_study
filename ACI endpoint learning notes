@@ -1,0 +1,86 @@
+EP - Endpoint
+BD - Bridge domain
+PBR - Policy-based Redirect
+
+Bounce entry - used when EP is moved to other leaf, it points to a new leaf where EP is now located
+(630sec age)   since 3.2(2l) it sends out the update to all leaves when bounce entry ages out
+
+Unicast routing(BD) - if it's turned on, leaves will learn MAC and IP
+				      if it's turned off, leaves will learn MAC only. Subntes configured under BD aren't pushed to leaves, routing don't occur
+					  Also if it's off, BD will only be used for l2 communications, EPs in that BD should have their default gateways outside CISCO ACI
+					  If you turn it off from being enabled, IPs are flushed from EP table for BD (before 3.1(1i) also MACs were flushed
+					  
+L2 Unknown Unicast(BD) - may have different options
+						 option "Flood"
+						 option "Hardware-Proxy" drops L2 unicast packets on the spine if destination MAC has not been learned 
+							anywhere on the BD in ACI and the COOP database doesn't have the information
+
+Silent host detection - For L3 routed traffic to an unknown IP, leaf will generate an ARP request from its BD SVI IP
+    (ARP Gleaning)      toward unknown IP to detect and learn the unknown IP. Only one leaf with BD SVI IP will generate ARP request
+                        usually it's triggered by the spine when it can't find unknown IP, even in COOP database.
+						Happens regardless of configuration (L2 unknown unicast or ARP flooding) as long as traffic is routed 
+						to unknown IP. It's sent to Multicast group of BD (all interfaces of BD)
+						
+ARP flooding(BD) - if ARP flooding is enabled, ACI fabric will flood the ARP request within the BD - silent hosts will receive packet 
+						and respond
+				   if ARP flooding is disabled, fabric will perform unicast routing against target IP, if it's silent host and unknown 
+						to leaf and COOP, ARP gleaning will be performed
+
+GARP (Gratuitous ARP) - an ARP reply initiated without ARP request				   
+				   
+---L3out learning:
+Local endpoint learning; packet from l3out to ACI – only source MAC is learned as local EP (IP is not learned)
+Remote endpoint learning; packet from l3out to ACI – no MAC nor IP learned as a remote EP, originating leaf not added
+                                                     (only retention timer updated)
+Remote endpoint learning; packet from ACI to l3out - no MAC nor IP learned as a remote EP if the VRF mode is "ingress policy enforcement"
+                                                     (only observed when packet to l3out is from 1st gen leaf switch)
+													 
+
+---EP learning optimization:
+													 
+DSR - Direct server return. 
+	  Deployed mainly when large amount of return traffic is coming from server
+	?
+	  Disables learning IP from data-plane. Only control-plane (ARP, GARP, neighbor discovery) from EPG with DSR virt IP configured
+
+GARP based EP move detection - when IP of EP moves from MAC #1 to MAC #2 (when both are from same EPG)
+							   Only works when unicast routing and ARP flooding enabled							
+													 
+Enforce subnet check(BD)      - If enabled, fabric will learn only IP addresses for subnets configured on the BD (can be certain BD)
+(Limit IP learning to subnet)	to check if it's enabled: "vsh -c 'show system internal epm vlan vlan-id detail'"
+                                and look for "Learn Enable" option, should be Yes
+													 
+Endpoint Dataplane Learning - this option enables and disabled EP data-plane IP learning (restricted to PBR cases)												 
+							  if this is disabled, Limit IP learning to subnet option will not appear in APIC GUI					 
+													 
+IP Data-Plane Learning (VRF) - this option enables and disabled EP data-plane IP learning on VRF													 
+							   when disabled, behavior is as follows:
+									-local MACs and remote MACs are learned via data-plane (no changes here)
+									-local IPs are not learned via data-plane
+									-local IPs are learned from ARP/GARP/Neighbor discovery via the control plane
+									-remote IPs are not learned from unicast packets via the data plane
+									-remote IPs are learned from multicast packets via the data plane
+													 
+Disable remote EP learn (Fabric) - applies on border leaves. To disable remote EP IP learning at border leaves on VRFs, which have 
+	ingress policy enabled													 
+													 
+Enforce subnet check(VRF) - superior to same BD option and applies to whole fabric (all VRFs, cannot be only one)
+	                        available only since 2nd gen leaf switches
+							works as BD option, but works for all BDs 
+						  >>if traffic originated within BD#1 between two leaves 
+						  >>and source IP is part of BD#2, it will be added to EP table	
+							difference from BD option: 
+								-BDoption is learning MAC nonetheless
+								-VRFoption prevents MAC learning, but MACs still can be learned in case of bridging (l2) traffic
+								 because in that case, IP header is not checked hence cannot be filtered by VRFoption
+
+
+
+
+
+
+
+
+
+
+								
