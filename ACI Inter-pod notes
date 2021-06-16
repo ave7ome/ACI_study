@@ -1,0 +1,28 @@
+IPN - inter-pod network
+	All IPN devices should be interconnected
+	To reduce geographical link distribution, port-channel between devices on same location may be used
+BUM - Broadcast, unknown unicast, multicast traffic in ACI
+RP - Rendezvous point in multicast routing (one of routers in l3 network between pods)
+	 Multicast can be split up between RPs
+GIPo - Multicast group
+Configuration zones - to prevent admin from configuring something he didn't want to (show usage also)
+ARP Glean (used when ARP flooding is disabled)
+		  - if spine doesn't have info on where is the destination of ARP request is connected,
+			fabric generates ARP request from IP associated to BD. This ARP request is sent
+			out all the leaf nodes edge interfaces part of BD. In Multi-pod, ARP glean request
+			is also sent to remote Pods across the IPN
+	  -!IP for BD must be configured
+	  -!IPN should be properly configured to handle ARP glean multicast traffic (239.255.255.240)
+
+In multi-pod scenario, maximum supported latency between pods is 50ms!
+New spine in new multi-pod environment can only join to it if it has at least an operating leaf connected to it
+Requirement for connectivity between 2 pods is being able to complete an ARP exchange
+
+
+-why exactly IS-IS (not something else) in ACI?
+-different BGP instances, same ASN?
+
+-IGMP (multicast in IPN)
+-PIM Bidir (multicast in IPN)
+
+ 
