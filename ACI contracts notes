@@ -1,0 +1,179 @@
+ ____________________
+|     Contract       | - "an access policy", specifies communication that is allowed between EPGs, applied to EPG
+| __________________ |
+||    Subject       || - a part of contract, it includes filters, which are being used in inter-EPG communications
+|| _________________||
+|||    Filter      ||| - a filter with entries to define which traffic is allowed
+||| ______________ |||
+|||| Filter entry |||| - defines exact protocols, src/dst ports that are allowed
+||||______________||||
+|||________________|||
+||__________________||
+|____________________|
+
+                           ######################
+###                                                                       ###
+###Exact zoning-rule priorities are in ACI contracts Whitepaper, p.120-121###
+###Exact filter priorities are in ACI contracts Whitepaper, p.129         ###
+###                                                                       ###
+                           ######################
+
+Provider EPG - usually a destination endpoint resides here (dst-port here)
+Consumer EPG - an enpoint that initiates a connection usually resides here (src-port here)
+
+'#show zoning-rule' (on leaves) to display rules created implicitly and by contracts
+
+VRF enforcement modes:
+	unenforced - policy not being applied between EPGs (EPGs can freely communicate with each other)
+   |enforced - policy is being applied for communications between EPGs
+   |	ingress - policies are stored only on non-border leaves and mostly applied on ingress devices
+   |	egress - policies are stored on borded leaves (takes a lot of resources, not recommended)
+
+Inter-VRF route-leak
+	configure consumer subnet (BD) to be shared between VRFs
+	configure provider EPG subnet to be shared between VRFs and no default SVI gateway
+	
+for L3OUT: "Shared route cotrol subnet" + "Shared security import subnet"
+L3OUT EPG subnet - "external subnet for external EPG"
+
+preferred groups - a set of EPGs in BD, no contracts needed for traffic between EPGs in that group
+vzAny - all EPGs in VRF (cannot be used as provider in inter-VRF contract)
+
+Inter-tenant contracts:
+	-Inter-tenant intra VRF (contract in tenant 'common')
+	    contract in tenant common can be accesses by any tenant hence configuration is simply to configure
+		provider EPG and consumer EPG for chosen tenants
+	-Inter-tenant inter-VRF (contract in tenant 'common')
+		same as previous but route-leaking between VRFs should be configured as well
+	-Inter-tenant inter-VRF (contract in any user tenant)
+		same as previous but since contract now cannot be acceses by any tenant by default, contract should
+		be created in tenant that contains provider EPG, then it can be exported to other tenant and addressed
+		as consumed contract interface
+
+Contract master - take all rules from master EPG
+		
+Microsegmentation (uSeg) features:
+			Intra-EPG isolation - total isolation of traffic between EPs in EPG
+			Intra-EPG contract - an access policy for EPs in same EPG communication
+			uSeg EPG - so-called micro EPG, a set of EPs within one EPG grouped by some attribute (IP, MAC, VM attribute)
+
+uSeg EPG:
+	requires 'ingress' VRF enforcement mode;
+	uSeg EPG domain must be configured to match the base EPG domain;
+	base and uSeg EPG(s) must be in the same BD, BD must have an IP subnet;
+	part of vzAny and supports preferred group, intra-EPG isolation, intra-EPG contracts as well;
+	in physical domain, static-leaf mapping should be defined to let ACI know which leaves should be programmed with policies.
+	
+ESG (Endpoint Security Group) (group of EPs from different EPGs):
+		it's a security zone;
+		not bound to the BD;
+		works across entire VRFs;
+		do not have network-related config such an subnets;
+		security rules are defined by using contracts between ESGs;
+		contracts between EPGs and basic ESGs are not possible (between L3OUT EPG and ESG - possible)
+		
+QoS in ACI:
+		deals with class and marking to place traffic into one of the Qos classes;
+		each QoS class represents a class of service and is equivalent to a 'qos-group' in Cisco NX-OS;
+		each class of service maps to a queue or a set of queues in hardware;
+		|QoS configuration at the contract and the contract subject specifies the assignment of the traffic to a given qos-group (qOS class) based on the source EPG, destination EPG and filters;
+		|custom QoS configuration at the EPG specifies the assgnment of the traffic to a given qos-group based on the dot1p or DSCP values of the incoming traffic from that EPG;
+		|QoS class configuration at the EPG defines which qos-group based on the traffic from that to which the EPG belongs if none of the other previous criteria are matched;
+		
+Priority of QoS in ACI:
+	1. Contract subject QoS priority
+	2. Contract QoS class
+	3. Non-L3OUT source EPG custom QoS policy
+		3.1. If L3OUT - Custom QoS policy at L3OUT logical interface profile. Applied to traffic coming into ACI through L3OUT interface
+	4. Non-L3OUT source EPG QoS class
+		4.1. If L3OUT - QoS priority at L3OUT logical interface profile (same as 3.1.)
+	5. If no QoS class is specified - traffic is assigned with Level 3 QoS class
+	
+**QoS config for L3OUT EPG only take effect for ingress traffic, for egress - subject or contract QoS config should be used
+**to modify CoS (Class of Service) of traffic. For that, VRF enforcement egress mode is required
+		
+Priority for DSCP is the same as QoS priority in ACI (but no p.4):		
+	1. Contract subject DSCP
+	2. Contract DSCP
+	3. Non-L3OUT source EPG custom QoS policy (DSCP configurable there)
+		3.1. If L3OUT - Custom QoS policy (DSCP configurable there) at L3OUT logical interface profile. Applied to traffic coming into ACI through L3OUT interface
+	5. If no DSCP is specified - traffic is assigned to 'Unspecified'
+
+for L3OUT same applied as in **
+
+vsh -c 'show logging ip access-list internal packet-log deny/permit' '| grep VRF_scope' shows logs for policy matches in leaf CLI
+'show logging ip access-list cache {deny|permit} [detail]' shows flow statistics in leaf CLI
+
+'show system internal policy-mgr stats' shows hitcounts for contract rules
+
+
+'Stateful' option in filter entry requires an ACK flag presence for packets going from provider EPG back to consumer EPG 
+	does not prevent SYN + ACK attack from provider
+
+Policy compression cannot be enabled if Stateful option in Filter entry is enabled
+
+
+L3OUT EPG:
+	for L3OUT EPG with subnet 0.0.0.0/0, the EPG class ID (pcTag) is special;
+		for destination in zoning-rule, class ID is 15;
+		for source in zoning-rule, class ID equals VRF class ID;
+	
+	
+Contract priorities:
+	Specific EPG wins over vzAny of preferred groups
+		EPG-to-EPG (7,9), EPG-to-vzAny (13,15), vzAny-to-EPG (14,16), vzAny-to-vzAny (17,20)
+		specific source wins over specific destination
+	
+	Specific L4 rule wins
+		specific filter wins over 'any' filter
+		specific destination port wins over specific source port
+		
+	Deny action wins, specific protocol wins
+		deny+log wins over deny, deny wins over redirect or permit (even if permit has specified ports)
+		between redirect and permit, more specific protocol and specific L4 port wins
+		
+Exact zoning-rule priorities are in ACI contracts Whitepaper, p.120-121
+
+Between redirect and permit:
+	specified L4 port wins;
+	if both ports specified, destination port wins over source port;
+	if ports are similar, redirect wins over permit.
+	if ports are overlapping (ex. dst-tcp/22 and dst-tcp/22-80), priority is not deterministic
+
+Exact filter priorities are in ACI contracts Whitepaper, p.129
+
+Taboo contract - to deny and log traffic to specific EPG
+
+Out-of-band (OOB) contract - applies to OOB traffic from the MGMT tenant
+OOB EPG configuration - ACI contracts Whitepaper, p.135-?
+
+'Tiles' are user to perform routing functions or filtering functions and so on (default values in parentheses):
+	MAC address table (24K)
+	IPv4 (24K)
+	IPv6 (12K)
+	LPM table (20K)
+	Policy Cam table (filtering/contracts) (64K)
+	Routed Multicast entries (8K)
+
+Is scalable - can be more that defaults above (different profiles at p.138-139)
+
+Resolution immediacy - controls when VRF, BD and SVI are pushed (programmed) to the leaf nodes
+	p.142 for clarifications
+Deployment immediacy - controls when contracts are programmed in the hardware
+	p.142 for clarifications	
+		
+Scalability guide		
+https://www.cisco.com/c/en/us/td/docs/switches/datacenter/aci/apic/sw/5-x/verified-scalability/cisco-aci-verified-scalability-guide-501.html		
+		
+Cisco NAE (Network Assurance Engine) - helps to monitor the policy-cam capacity. Specific EPG, contract, tenant etc. can be chosen		
+		
+		
+Contracts troubleshooting (p.163-?)		
+		show zoning-rule [scope VRF_scope] 			#shows rules for leaf
+		show zoning-filters [filter filter_ID] 		#shows filters for rules 
+		show system internal policy-mgr stats | grep VRF_scope
+		contract_parser.py -h 						#shows all rules, displays them in nx-os like ACL syntax with hitcounts
+		OSB - Object store browser 					#https://APIC_IP/visore.html	
+		vsh -c 'show logging ip access-list internal packet-log deny/permit' '| grep VRF_scope'
+		Contract viewer App (downloaded from Cisco DC app center, https://dcappcenter.cisco.com)
+		ELAM (Embedded Logic Analyzer Module) - downloaded from DC App Center
