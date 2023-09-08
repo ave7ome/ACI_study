@@ -1,0 +1,27 @@
+#                    VXLAN (as an independent protocol)
+VXLAN allows L2 packets to be successfully traversed over the L3 network.
+
+Usual Frames (with ETHERNET header included) are being encapsulated and following are being added to them:
+    1. VXLAN header (8 Byte)
+    2. UDP header (8 Byte)
+    3. IP header (20 Byte)
+
+    Above is called "MAC-IN-IP/UDP" 
+    UDP/4789 is used.
+
+    Also ETH header adds up 14 Bytes. (18 Bytes with VLAN data, but usually it gets added to VXLAN header)
+    Since L2 header is not counted up to starting MTU (up to 1500 bytes) of not encapsulated packet.
+
+That means each VXLAN PDU accumulates additional 50 Bytes of MTU to the tunnel.
+
+VXLAN virtual identifier (VNID) allows up to 16 million diffrent values. 
+VLAN only allows 4096.
+
+While LISP has ITR and ETR, in VXLAN, routers are called VTEP.
+
+VXLAN is Data Plane protocol only, by itself it cannot move packets in the network since it doesn't know where to move them.
+Control Plane protocol is required: 
+    - Usually MP-BGP is used for that
+    - ACI uses COOP
+    - SDA uses LISP
+    - EVPN
