@@ -22,3 +22,118 @@ Signalling options:
 
 # VXLAN
 
+VXLAN "MAC-in-UDP" packet sctructure:
+
+initial L2 Frame (IL2F):
+    [L2[L3[DATA]]FCS]
+gets encapsulated as following
+    [Ext-MAC-Header[Ext-IP-Header[UDP-Header[VXLAN-Header[IL2F]]]]FCS]
+
+        8byte              8bit         24bit   24bit   8bit
+    [VXLAN-Header] = [VXLAN-RRRR1RRR][Reserved][VNID][Reserved]
+        [VNID] - 16M VNIDs
+
+        8byte           16bit         16bit        16bit        16bit
+    [UDP-Header] = [UDP-Src-Port][UDP-Dst-Port][UDP-Length][Checksum-0x0000]
+        [UDP-Dst-Port] - udp/4789, but can be different in older implementations of the protocol
+        [UDP-Src-Port] - used to be able to send traffic over the certain paths (for load-balancing?)
+
+        20byte                72bit             8bit            16bit           32bit        32bit
+    [Ext-IP-Header] = [IP-Header-Misc-Data][Protocol-0x11][Header-Checksum][Outer-Src-IP][Outer-Dst-IP]
+        [Outer-Src-IP]\
+        [Outer-Dst-IP] - VTEP IP-addresses of Source and Destination, serve as a transport through underlay IP-network
+
+        10/14byte          48bit         48bit           16bit           16bit          16bit
+    [Ext-MAC-Header] = [Dst-MAC-Addr][Src-MAC-Addr][VLAN-Type-0x8100][VLAN-ID-Tag][Ether-Type-0x0800]
+        Serve as a transport to the next host in the underlay network
+
+VTEP - VXLAN Tunnel End-Point
+VNID - VXLAN Network Identifier
+
+Initial VXLAN implementation
+    VXLAN Flood&Learn based on Multicast
+    - No control plane
+    - Flood&Learn using transmitted data. Like it is implemented in basic switched networks (packet received, SRC MAC added to CAM table, packet forwarded to all other switches, SRC MAC added on them and flooded from compatible interfaces)
+    - Multicast is used as a transport for BUM-traffic (Broadcast, Multicast, Unknown Unicast)
+        Some Multicast group is used
+
+    All in all - frame is transmitted through overlay unchanged (src-mac and dst-mac is the same before frame enters the VXLAN network and after it left the VXLAN network, only underlay MAC-addresses get changed)
+
+    How it works:
+    Host1 connected to leaf1 sends out the ping request to Host2 connected to Leaf2 (there is also Leaf3 in topology with Host3)
+    - Host1 sends ARP request to receive IP of Host2 (src-mac: MAC_Host1; dst-mac: FF:FF:FF:FF:FF:FF)
+    - Leaf1 receives ARP and original ARP-request becomes an overlay with some VXLAN VNID, underlay is added (src-mac: MAC_Leaf1; dst-mac: 00:01:5E:01:01:01; src-ip: IP_Leaf1; dst-ip: 239.1.1.1; over UDP). dst-mac and dst-ip are of Multicast group 
+        All other leaves that have that same VXLAN VNID configured receive the frame, de-encapsulate it and forward it further to their EPs
+        Upon receival by other leaves, MAC-address of Host1 is added to Leaf2 and Leaf3 CAM-table with link to Leaf1 (reachable through Leaf1 VTEP)
+    - Host2 on Leaf2 receives the ARP and sends back a response (src-mac: MAC_Host2; dst-mac: MAC_Host1)
+    - Leaf2 gets packet from Host2 with ARP response and modifies it by making the original an overlay and adding some underlay (src-mac: MAC_Leaf2(?1); dst-mac: hop-by-hop(?2); src-ip: IP_Leaf2; dst-ip: IP_Leaf1; over UDP)
+        (?1) - on slides it was "hop-by-hop" but the underlay packet is sent out from Leaf2 so it must be it's MAC-address
+        (?2) - on slides it was "MAC_Leaf2" but the frame is send out from Leaf2 therefore destination being itself is weird. "hop-by-hop" is more likely here due to us not knowing any MACs from underlay
+    - Then ARP response is received by Leaf1 and transmitted further to Host1
+    - After that Host1 can freely exchange traffic with Host2 sice IPs and MACs have been learned. That is why no Multicast-group IP or MAC is required to be used for such communication, it is used only for learning
+
+    Pros:
+    - ?  none  ?
+
+    Cons:
+    - No control plane (difficult to scale an manage such network)
+    - Multicast is required therefore might be difficult to manage and implement
+
+Further VXLAN development
+    -No Multicast dependance
+        Ingress replication allows unicast transport to be used IF REQUIRED
+        Control plane allows automatic VTEP IP-address discovery
+    -External connections
+        VTEP backup connectivity (MLAG/VPC)
+        VXLAN gateways to external networks - MPLS VPN, Segment Routing (SR-MPLS, SRv6)
+        "Stitching" the VXLAN tunnels together for Datacenter interconnection: VXLAN Multi-Site
+    -Control plane
+        MAC and IP -addresses are learned by VTEPs
+        L2/L3 - to - VTEP associations are announced using control plane protocols
+        Reduced flooding
+        Optimal ARP distribution
+    -IP serivces
+        Inter-VXLAN routing
+        Distributed Gateway (anycast?) by default
+        Company isolation (Multy-tenancy) at L2 and L3
+
+VXLAN MP-BGP EVPN Fabric Architecture
+    Basic components
+        -Overlays (L2, L3, L2&L3)
+        -VXLAN encapsulation
+        -Underlay transport network
+        -Control plane based on BGP (Peer discovery, Route learning and Distribution)
+        -Data plane (Overlay L2/L3 Unicast Traffic, Overlay BUM traffic forwarding)
+
+VXLAN - overlay
+EVPN (Ethernet VPN) - underlay
+    
+
+
+
+# EVPN
+Ethernet VPN
+
+EVPN - control plane entity basing on MP-BGP using EVPN NLRI
+    Responsible for VTEP switching for L2 (MAC) and L3 (IP)
+    Discovery: BGP, using MPLC VPN mechanisms
+    Signalling: BGP
+    EP learning: Control plane (BGP)
+
+Control plane for EVPN is EVPN MP-BGP (RFC 7432)
+Data plane for EVPN could be: MPLS (RFC 7432)
+                              PBB (RFC 7623)
+                              NVO3 (RFC 8365) - VXLAN / NVGRE / MPLSoGRE
+
+
+# MP-BGP
+
+
+https://www.youtube.com/watch?v=uW_K2VDsPPc day 1
+46:29
+
+
+
+
+
+
