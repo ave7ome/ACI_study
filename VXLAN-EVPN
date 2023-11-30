@@ -203,7 +203,12 @@ https://www.youtube.com/watch?v=uW_K2VDsPPc day 1
 1:41:28
 
 
-https://www.youtube.com/watch?v=kRM44rNZdJs&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sFpkS
+https://www.youtube.com/watch?v=kRM44rNZdJs&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sFpkS (1,2 watched)
+    Whenever LACP gets established, "system-id" parameter is shared over all configured links and receiving side builds a port-channel if received "system-id" is the same value.
+    OSPF is the most used routing protocol for underlay routing in VXLAN.
+    ARP request from servers is distributed as Multicast or Ingress replication (transforms into unicast upon receiveal by leaf)
+
+https://www.youtube.com/watch?v=JKmjZY9E0t0&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sFpkS&index=3
 
 
 
