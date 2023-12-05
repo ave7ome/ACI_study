@@ -207,8 +207,9 @@ https://www.youtube.com/watch?v=kRM44rNZdJs&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sF
     Whenever LACP gets established, "system-id" parameter is shared over all configured links and receiving side builds a port-channel if received "system-id" is the same value.
     OSPF is the most used routing protocol for underlay routing in VXLAN.
     ARP request from servers is distributed as Multicast or Ingress replication (transforms into unicast upon receiveal by leaf)
+    
+    In multicast, sender router sends a PIM REGISTER to RP, and receiver router sends PIM JOIN
 
-https://www.youtube.com/watch?v=JKmjZY9E0t0&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sFpkS&index=3
-
+https://www.youtube.com/watch?v=9Fbv06aYiSo&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sFpkS&index=4
 
 
