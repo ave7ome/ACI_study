@@ -133,7 +133,7 @@ Uses Address-families (IPv4, IPv6, EVPN, VPNv4, VPNv6)
 
 Uses NLRI to exchange information.
 
-Route Distinguished (RD) - 8-byte field, a VRF parameter. Makes prefixes unique between clients
+Route Distinguished (RD) - 8-byte field, a VRF parameter. Makes prefixes unique between clients //  in VPN (VXLAN) RD only have local value to router
     VPNv4 address = RD + VPN IP prefix
 
 Route Targer (RT) - 8-byte filed, a VPF parameter. Basically a community from BGP as i know it, controls import/export rules by assigining unique values to the rules. RT consists of AS number:VNI 
@@ -210,6 +210,11 @@ https://www.youtube.com/watch?v=kRM44rNZdJs&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sF
     
     In multicast, sender router sends a PIM REGISTER to RP, and receiver router sends PIM JOIN
 
+    When prefix gets into BGP, RT attribute is added to it ("SEND-COMMUNITY" command is used to make it work)
+    Loopbacks on all leaves have to be configured with "SECONDARY" IP for interconnectivity and it will be used as BGP next-hop update for other leaves
+    Routes get to BGP from RIB. In Nexus there is L2 RIB used for BGP L2VPN EVPN in VXLAN
+
 https://www.youtube.com/watch?v=9Fbv06aYiSo&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sFpkS&index=4
+17:42
 
 
