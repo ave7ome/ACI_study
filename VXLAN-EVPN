@@ -181,6 +181,8 @@ Route Type 5 (internal and external subnet prefixes). Announced:
     RT for IP-VRF as AS:L3VNI
     Router Mac
 
+Route Type 3 (used to build ingress-replication tunnels)
+
     Based on Routing protocols information or static/connected routes
 
 L2/L3 services
@@ -212,9 +214,14 @@ https://www.youtube.com/watch?v=kRM44rNZdJs&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sF
 
     When prefix gets into BGP, RT attribute is added to it ("SEND-COMMUNITY" command is used to make it work)
     Loopbacks on all leaves have to be configured with "SECONDARY" IP for interconnectivity and it will be used as BGP next-hop update for other leaves
-    Routes get to BGP from RIB. In Nexus there is L2 RIB used for BGP L2VPN EVPN in VXLAN
+    How EP MAC is shared through BGP:
+        Whenever packet is sent by server and received by Nexus switch on the interface, switch has the local MAC-address of EP. If there is a VLAN-VNI link, it'll be stored for MAC as well.
+        To put this MAC into BGP, there is following process
+        Routes get to BGP from RIB (L3 DB). In Nexus there is L2 RIB and it is filled with MAC-addresses that have a VLAN-VNI link => BGP table is populated from L2 RIB, for each entry, there is MAC-address + RT value which depends on the "EVPN -> vni * l2 -> route-target" configuration (if auto, RT is VNI_ID:AS_ID)
 
-https://www.youtube.com/watch?v=9Fbv06aYiSo&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sFpkS&index=4
-17:42
+    "show l2route evpn mac all"
+
+
+https://www.youtube.com/watch?v=afdtXTT5VVQ&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sFpkS&index=6
 
 
