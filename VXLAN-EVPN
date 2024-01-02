@@ -221,7 +221,19 @@ https://www.youtube.com/watch?v=kRM44rNZdJs&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sF
 
     "show l2route evpn mac all"
 
+    L3VNI is used whenever there are leaves with no local endpoints for some of VNIs
+        Like when there's a VNID 100010 with 3 hosts on leaf A and no hosts in same VNI on leaf B, to establish connectivity from other VNIDs of leaf B to 100010, it's mandatory to create it's VLAN-VNID mapping on switch
+        Same for all the similar VNIDs and for all the leaves
+        To make it easier, L3VNI can be used to make "a logical connection" and allow routing over fabric
+    L3VNI creation:
+        - create VLAN for L3VNI and map it to chosen VNID
+        - create VRF context and assign mapped VNID to VRF, define RD and under af ipv4 unicast define RT parameters
+        - create SVI (IP not required) for L3VNI, make it a member of VRF and configure "ip forward"
+        - assign an L3VNI to nve1
+        - create a BGP direct-to-other-leaves redistribution
+        - assign desired SVIs to VRF
+    
 
-https://www.youtube.com/watch?v=afdtXTT5VVQ&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sFpkS&index=6
+https://www.youtube.com/watch?v=J1fKcGfB76k&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sFpkS&index=7
 
 
