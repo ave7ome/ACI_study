@@ -66,8 +66,9 @@ Initial VXLAN implementation
         All other leaves that have that same VXLAN VNID configured receive the frame, de-encapsulate it and forward it further to their EPs
         Upon receival by other leaves, MAC-address of Host1 is added to Leaf2 and Leaf3 CAM-table with link to Leaf1 (reachable through Leaf1 VTEP)
     - Host2 on Leaf2 receives the ARP and sends back a response (src-mac: MAC_Host2; dst-mac: MAC_Host1)
-    - Leaf2 gets packet from Host2 with ARP response and modifies it by making the original an overlay and adding some underlay (src-mac: MAC_Leaf2(?1); dst-mac: hop-by-hop(?2); src-ip: IP_Leaf2; dst-ip: IP_Leaf1; over UDP)
-        (?1) - on slides it was "hop-by-hop" but the underlay packet is sent out from Leaf2 so it must be it's MAC-address
+    - Leaf2 gets packet from Host2 with ARP response and modifies it by making the original an overlay and adding some underlay (src-mac: hop-by-hop(?1); dst-mac: hop-by-hop(?2); src-ip: IP_Leaf2; dst-ip: IP_Leaf1; over UDP)
+        "hop-by-hop" means that MAC-addresses change on the way over underlay. Change with every L3 hop (L2 info is stripped away to be replaced by new one)
+        (?1) - on slides it was "hop-by-hop" but the underlay packet is sent out from Leaf2 so it starts with it's MAC
         (?2) - on slides it was "MAC_Leaf2" but the frame is send out from Leaf2 therefore destination being itself is weird. "hop-by-hop" is more likely here due to us not knowing any MACs from underlay
     - Then ARP response is received by Leaf1 and transmitted further to Host1
     - After that Host1 can freely exchange traffic with Host2 sice IPs and MACs have been learned. That is why no Multicast-group IP or MAC is required to be used for such communication, it is used only for learning
@@ -106,7 +107,8 @@ VXLAN MP-BGP EVPN Fabric Architecture
         -Data plane (Overlay L2/L3 Unicast Traffic, Overlay BUM traffic forwarding)
 
 VXLAN - overlay
-EVPN (Ethernet VPN) - underlay
+EVPN - overlay control-plane
+OSPF - underlay
 
 VXLAN/EVPN - to - VXLAN Flood&Learn comparison
 https://i.ibb.co/wSJDGH1/fff.png
@@ -129,7 +131,9 @@ Data plane for EVPN could be: MPLS (RFC 7432)
 # MP-BGP
 
 Multi-Protocol implementation of BGP
-Uses Address-families (IPv4, IPv6, EVPN, VPNv4, VPNv6)
+
+Address-Family Indicator            - IPv4, IPv6, L2VPN, VPNv4, VPNv6 - AFI
+Subsequent Address-Family Indicator - EVPN, Unicast, Multicast        - SAFI
 
 Uses NLRI to exchange information.
 
@@ -205,13 +209,17 @@ https://www.youtube.com/watch?v=uW_K2VDsPPc day 1
 1:41:28
 
 
-https://www.youtube.com/watch?v=kRM44rNZdJs&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sFpkS (1,2 watched)
+Below are notes for n4e videos https://www.youtube.com/watch?v=kRM44rNZdJs&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sFpkS
+
+    1
     Whenever LACP gets established, "system-id" parameter is shared over all configured links and receiving side builds a port-channel if received "system-id" is the same value.
     OSPF is the most used routing protocol for underlay routing in VXLAN.
     ARP request from servers is distributed as Multicast or Ingress replication (transforms into unicast upon receiveal by leaf)
-    
+
+    2
     In multicast, sender router sends a PIM REGISTER to RP, and receiver router sends PIM JOIN
 
+    4
     When prefix gets into BGP, RT attribute is added to it ("SEND-COMMUNITY" command is used to make it work)
     Loopbacks on all leaves have to be configured with "SECONDARY" IP for interconnectivity and it will be used as BGP next-hop update for other leaves
     How EP MAC is shared through BGP:
@@ -219,6 +227,7 @@ https://www.youtube.com/watch?v=kRM44rNZdJs&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sF
         To put this MAC into BGP, there is following process
         Routes get to BGP from RIB (L3 DB). In Nexus there is L2 RIB and it is filled with MAC-addresses that have a VLAN-VNI link => BGP table is populated from L2 RIB, for each entry, there is MAC-address + RT value which depends on the "EVPN -> vni * l2 -> route-target" configuration (if auto, RT is VNI_ID:AS_ID)
 
+    5
     "show l2route evpn mac all"
 
     6
