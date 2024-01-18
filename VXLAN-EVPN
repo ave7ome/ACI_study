@@ -280,6 +280,10 @@ Below are notes for n4e videos https://www.youtube.com/watch?v=kRM44rNZdJs&list=
     BGW Loopbacks for external connectivity
     Different internal fabric loopbacks 
     
+    11
+    Unknown unicast traffic can be transfered within the fabric using:
+        Ingress replication - leaves have connectivity to each other using some routing and whenever unknown unicast is sent (ARP request), packet is multiplied by the amount of peer leaves and each of them is sent as unicast to leaves
+        Multicast - unknown unicast is sent to multicast IP-address to all leaves 
 
 
 https://www.youtube.com/watch?v=6RGvqo6h2vY&list=PLhDYfiUuFcxMIaX_VNSlbZx49QH_sFpkS&index=11
